@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Withdraw - GrowFunds</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #f8f9fa; display: flex; justify-content: center; padding: 20px; }
+        .card { background: white; padding: 30px; border-radius: 25px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); width: 100%; max-width: 350px; text-align: center; }
+        .amt { font-size: 40px; font-weight: bold; color: #2ecc71; margin: 10px 0; }
+        .label { color: #888; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; margin-top: 15px; display: block; text-align: left; }
+        input, select { width: 100%; padding: 12px; margin-top: 5px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 16px; }
+        .btn { width: 100%; padding: 15px; background: #e67e22; color: white; border: none; border-radius: 10px; font-weight: bold; font-size: 16px; margin-top: 20px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Withdraw</h2>
+    <p style="color: #888; font-size: 14px;">Available Balance</p>
+    <div class="amt" id="displayBalance">GHS 0.00</div>
+
+    <label class="label">Amount (Min: GHS 30)</label>
+    <input type="number" id="withdrawAmount" placeholder="Enter amount">
+
+    <label class="label">Select Network</label>
+    <select id="network">
+        <option value="MTN">MTN Momo</option>
+        <option value="Telecel">Telecel Cash</option>
+        <option value="AT">AT Money</option>
+    </select>
+
+    <label class="label">Momo Number</label>
+    <input type="tel" id="momoNumber" placeholder="05XXXXXXXX">
+
+    <button class="btn" onclick="submitWithdrawal()">Request Payout</button>
+</div>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyATHzKZbEV-G8geYqawjooNvBXO7w39bFc",
+        authDomain: "grow-funds-ee038.firebaseapp.com",
+        projectId: "grow-funds-ee038",
+        storageBucket: "grow-funds-ee038.firebasestorage.app",
+        messagingSenderId: "823406942973",
+        appId: "1:823406942973:web:362e219ad44856efa17c94"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const userId = localStorage.getItem("userId");
+
+    async function syncBalance() {
+        if (!userId) return;
+        const doc = await db.collection("users").doc(userId).get();
+        if (doc.exists) {
+            window.userData = doc.data();
+            document.getElementById('displayBalance').innerText = "GHS " + (window.userData.balance || 0).toFixed(2);
+        }
+    }
+
+    async function submitWithdrawal() {
+        const amount = parseFloat(document.getElementById('withdrawAmount').value);
+        const number = document.getElementById('momoNumber').value;
+        const net = document.getElementById('network').value;
+        const fee = amount * 0.01;
+        const total = amount + fee;
+
+        if (amount < 30) { alert("Minimum is GHS 30"); return; }
+        if (total > window.userData.balance) { alert("Insufficient balance (including 1% fee)"); return; }
+        if (!window.userData.hasPurchasedPlan) { alert("Please invest first!"); return; }
+
+        if (confirm(`Withdraw GHS ${amount}?\nFee: GHS ${fee.toFixed(2)}`)) {
+            await db.collection("withdrawals").add({
+                userId, amount, number, net, fee, status: "Pending",
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            await db.collection("users").doc(userId).update({
+                balance: firebase.firestore.FieldValue.increment(-total)
+            });
+            alert("Request sent!");
+            location.reload();
+        }
+    }
+    syncBalance();
+</script>
+</body>
+</html>

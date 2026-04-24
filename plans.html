@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Investment Plans - GrowFunds</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #f0f2f5; padding: 20px; margin: 0; }
+        .plan-card { 
+            background: white; border-radius: 20px; padding: 20px; 
+            margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            text-align: center; border: 1px solid #eee;
+        }
+        .tier-name { color: #e67e22; font-weight: bold; font-size: 14px; text-transform: uppercase; }
+        .price { font-size: 32px; font-weight: bold; margin: 10px 0; color: #2c3e50; }
+        .returns { color: #2ecc71; font-weight: 600; margin-bottom: 15px; }
+        .btn-buy { 
+            width: 100%; padding: 15px; background: #2ecc71; color: white; 
+            border: none; border-radius: 12px; font-weight: bold; font-size: 16px;
+        }
+        .popular { border: 2px solid #e67e22; transform: scale(1.05); }
+    </style>
+</head>
+<body>
+
+    <h2 style="text-align:center;">Select a Plan</h2>
+
+    <div class="plan-card">
+        <div class="tier-name">Starter Tier</div>
+        <div class="price">GHS 50.00</div>
+        <div class="returns">Daily Return: GHS 2.50</div>
+        <button class="btn-buy" onclick="payWithPaystack(50)">Invest Now</button>
+    </div>
+
+    <div class="plan-card popular">
+        <div class="tier-name">Growth Tier</div>
+        <div class="price">GHS 150.00</div>
+        <div class="returns">Daily Return: GHS 8.00</div>
+        <button class="btn-buy" onclick="payWithPaystack(150)">Invest Now</button>
+    </div>
+
+    <div class="plan-card">
+        <div class="tier-name">Elite Tier</div>
+        <div class="price">GHS 500.00</div>
+        <div class="returns">Daily Return: GHS 30.00</div>
+        <button class="btn-buy" onclick="payWithPaystack(500)">Invest Now</button>
+    </div>
+
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyATHzKZbEV-G8geYqawjooNvBXO7w39bFc",
+        authDomain: "grow-funds-ee038.firebaseapp.com",
+        projectId: "grow-funds-ee038",
+        storageBucket: "grow-funds-ee038.firebasestorage.app",
+        messagingSenderId: "823406942973",
+        appId: "1:823406942973:web:362e219ad44856efa17c94"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const userId = localStorage.getItem("userId");
+
+    function payWithPaystack(amount) {
+        const handler = PaystackPop.setup({
+            key: 'YOUR_PAYSTACK_PUBLIC_KEY', // Replace with your key from the dashboard
+            email: 'user@example.com', // Get this from your user doc
+            amount: amount * 100, // Paystack uses pesewas/kobo
+            currency: 'GHS',
+            callback: function(response) {
+                // This runs when payment is successful
+                activatePlan(amount);
+            },
+            onClose: function() {
+                alert('Transaction cancelled.');
+            }
+        });
+        handler.openIframe();
+    }
+
+    async function activatePlan(amount) {
+        try {
+            await db.collection("users").doc(userId).update({
+                hasPurchasedPlan: true,
+                currentInvestment: amount,
+                lastDailyClaim: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            alert("Success! Your plan is now active.");
+            window.location.href = "index.html";
+        } catch (e) {
+            alert("Error activating plan: " + e.message);
+        }
+    }
+</script>
+</body>
+</html>

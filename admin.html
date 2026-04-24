@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - GrowFunds</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <style>
+        body { font-family: -apple-system, sans-serif; background: #f0f2f5; padding: 15px; margin: 0; }
+        .stats-container { display: flex; gap: 10px; margin-bottom: 20px; }
+        .stat-card { 
+            flex: 1; background: white; padding: 15px; border-radius: 15px; 
+            text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05); 
+        }
+        .stat-val { display: block; font-size: 22px; font-weight: bold; color: #2ecc71; }
+        .stat-label { font-size: 11px; color: #888; text-transform: uppercase; }
+        
+        h2 { font-size: 18px; color: #333; margin-left: 5px; }
+        
+        .payout-card { 
+            background: white; padding: 15px; border-radius: 15px; 
+            margin-bottom: 12px; border-left: 6px solid #e67e22;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .name { font-weight: bold; font-size: 17px; color: #2c3e50; }
+        .details { color: #7f8c8d; margin: 4px 0; font-size: 13px; }
+        .amount { color: #e67e22; font-weight: 800; font-size: 19px; margin-top: 5px; }
+        
+        .btn-paid { 
+            background: #2ecc71; color: white; border: none; 
+            padding: 12px; border-radius: 10px; width: 100%; 
+            margin-top: 12px; font-weight: bold; font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="stats-container">
+        <div class="stat-card">
+            <span class="stat-label">Total Paid Out</span>
+            <span class="stat-val" id="totalPaid">GHS 0.00</span>
+        </div>
+        <div class="stat-card" style="border-bottom: 3px solid #e67e22;">
+            <span class="stat-label">Pending Req.</span>
+            <span class="stat-val" id="pendingCount" style="color: #e67e22;">0</span>
+        </div>
+    </div>
+
+    <h2>Pending Payouts</h2>
+    <div id="payoutList">Fetching data...</div>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyATHzKZbEV-G8geYqawjooNvBXO7w39bFc",
+        authDomain: "grow-funds-ee038.firebaseapp.com",
+        projectId: "grow-funds-ee038",
+        storageBucket: "grow-funds-ee038.firebasestorage.app",
+        messagingSenderId: "823406942973",
+        appId: "1:823406942973:web:362e219ad44856efa17c94"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // 1. Calculate Total Paid Out (from 'Completed' status)
+    function syncStats() {
+        db.collection("withdrawals").where("status", "==", "Completed")
+        .onSnapshot((snapshot) => {
+            let total = 0;
+            snapshot.forEach(doc => total += doc.data().amount);
+            document.getElementById("totalPaid").innerText = "GHS " + total.toFixed(2);
+        });
+    }
+
+    // 2. Load Pending List & Count
+    function loadAdminPanel() {
+        db.collection("withdrawals").where("status", "==", "Pending")
+          .onSnapshot((snapshot) => {
+            const list = document.getElementById("payoutList");
+            document.getElementById("pendingCount").innerText = snapshot.size;
+            list.innerHTML = "";
+            
+            if (snapshot.empty) {
+                list.innerHTML = "<div style='text-align:center; padding:20px; color:#999;'>All caught up! 🎉</div>";
+                return;
+            }
+
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                const id = doc.id;
+                list.innerHTML += `
+                    <div class="payout-card">
+                        <div class="name">${data.userName || 'Unknown'}</div>
+                        <div class="details">${data.net} Cash: <b>${data.number}</b></div>
+                        <div class="amount">GHS ${data.amount.toFixed(2)}</div>
+                        <button class="btn-paid" onclick="markAsPaid('${id}', '${data.number}')">Mark as Paid</button>
+                    </div>
+                `;
+            });
+        });
+    }
+
+    async function markAsPaid(docId, num) {
+        if(confirm("Confirm: Have you sent the Momo to " + num + "?")) {
+            try {
+                await db.collection("withdrawals").doc(docId).update({
+                    status: "Completed",
+                    paidAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } catch (e) { alert("Error: " + e.message); }
+        }
+    }
+
+    syncStats();
+    loadAdminPanel();
+</script>
+</body>
+</html>
